@@ -1,0 +1,262 @@
+# 机场订阅（可添加多个，格式参考 Airport1）
+proxy-providers:
+  ss1:
+    url: "ss1"
+    type: http
+    path: /etc/openclash/proxy_provider/ssconfig1.yaml
+    interval: 86400
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+      lazy: true
+    proxy: 直连
+  ss2:
+    url: "ss2"
+    type: http
+    path: /etc/openclash/proxy_provider/ssconfig2.yaml
+    interval: 86400
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 300
+      lazy: true
+    proxy: 直连
+
+# 节点信息
+proxies:
+  - {name: 直连, type: direct}
+
+# 全局配置
+# OpenClash 会接管端口和流量转发，mixed-port 保留供其读取，其余由 OpenClash 覆写
+# port: 7890
+# socks-port: 7891
+# redir-port: 7892
+mixed-port: 7893
+# tproxy-port: 7894
+allow-lan: true
+bind-address: "*"
+ipv6: false
+unified-delay: true
+tcp-concurrent: true
+# 裸核模式下关闭进程匹配
+# OpenClash 运行在路由器上，无法按进程分流，设为 off 节省资源
+# find-process-mode: strict
+find-process-mode: off
+log-level: warning
+global-client-fingerprint: chrome
+keep-alive-idle: 600
+keep-alive-interval: 15
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+# 控制面板由 OpenClash 自行注入，此处无需配置
+#external-controller: 0.0.0.0:9090
+#secret: ""
+#external-ui: ui
+#external-ui-name: zashboard
+#external-ui-url: "https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
+
+# 嗅探
+sniffer:
+  enable: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+  force-domain:
+    - "+.v2ex.com"
+  skip-domain:
+    - "rule-set:private_domain,cn_domain"
+    - "+.apple.com"
+    - "+.icloud.com"
+    - "+.wechat.com"
+    - "+.weixin.qq.com"
+    - "+.qq.com"
+    - "+.wechatapp.com"
+    - "Mijia Cloud"
+    - "+.push.apple.com"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+
+# 入站
+tun:
+  enable: true
+  # system/gvisor/mixed
+  stack: mixed
+  dns-hijack: ["any:53", "tcp://any:53"]
+  # ---- 裸核模式（不使用 nikki 等外部工具）----
+  # auto-route: true
+  # auto-redirect: true
+  # auto-detect-interface: true
+  # ---- nikki/旁路由模式（外部已接管路由）----
+  auto-route: false
+  auto-redirect: false
+  auto-detect-interface: false
+  #device: nikki
+
+# DNS 模块
+# OpenClash 会劫持局域网 DNS 请求并转发到此处（默认 1053 端口）
+dns:
+  enable: true
+  cache-algorithm: arc
+  listen: 0.0.0.0:1053
+  ipv6: false
+  prefer-h3: false
+  respect-rules: true
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter-mode: blacklist
+  fake-ip-filter:
+    - "rule-set:fakeipfilter_domain"
+  # 用于解析 DoH/DoT 类 nameserver 的域名，必须为 IP 格式
+  default-nameserver:
+    - 223.5.5.5 # 阿里 DNS，最推荐，全国速度最稳
+    - 119.29.29.29 # 腾讯 DNS，备选
+  # 解析代理节点域名，用国内 DNS 确保节点连得上
+  proxy-server-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  # 直连流量专用 DNS
+  direct-nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  direct-nameserver-follow-policy: false
+  # 走代理的域名使用境外 DoH，防止污染和泄露
+  nameserver:
+    - https://cloudflare-dns.com/dns-query
+    - https://dns.google/dns-query
+  nameserver-policy:
+    # 国内域名 + 私有域名 → 国内 DNS
+    "rule-set:private_domain,cn_domain":
+      - https://dns.alidns.com/dns-query
+      - https://doh.pub/dns-query
+    # 明确走代理的域名 → 境外 DoH
+    "rule-set:ai,gfw_domain,geolocation-!cn":
+      - https://cloudflare-dns.com/dns-query
+      - https://dns.google/dns-query
+
+# 出站策略
+proxy-groups:
+  # ======================== 手动选择分组 ========================
+  - {name: 默认代理, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Proxy.png", proxies: [香港故转, 日本故转, 狮城故转, 美国故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: AI, type: select, icon: "https://raw.githubusercontent.com/silentsiri/myrules/refs/heads/main/icons/claude-color.svg", proxies: [自建节点]}
+  - {name: YouTube, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/YouTube.png", proxies: [美国故转, 香港故转, 日本故转, 狮城故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: Google, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Google.png", proxies: [美国故转, 香港故转, 日本故转, 狮城故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: Apple, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Apple.png", proxies: [美国故转, 香港故转, 日本故转, 狮城故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: GitHub, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/GitHub.png", proxies: [香港故转, 日本故转, 狮城故转, 美国故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: OneDrive, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/OneDrive.png", proxies: [香港故转, 日本故转, 狮城故转, 美国故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: Microsoft, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Microsoft.png", proxies: [香港故转, 日本故转, 狮城故转, 美国故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: TikTok, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/TikTok.png", proxies: [香港故转, 日本故转, 狮城故转, 美国故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: Telegram, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Telegram.png", proxies: [香港故转, 日本故转, 狮城故转, 美国故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: NETFLIX, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Netflix.png", proxies: [香港故转, 日本故转, 狮城故转, 美国故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: PayPal, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/PayPal.png", proxies: [香港故转, 日本故转, 狮城故转, 美国故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+  - {name: 漏网之鱼, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Final.png", proxies: [香港故转, 日本故转, 狮城故转, 美国故转, 香港自动, 日本自动, 狮城自动, 美国自动, 自动选择, 香港节点, 日本节点, 狮城节点, 美国节点, 韩国节点, 台湾节点, 加拿大节点, 英国节点, 土耳其节点, 荷兰节点, 法国节点, 德国节点, 越南节点, 马来西亚节点, 泰国节点, 菲律宾节点, 全部节点, 直连]}
+
+  - {name: Speedtest, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Auto.png", proxies: [直连, 默认代理, 自建节点]}
+
+  # ======================== 地区节点（手动）========================
+  - {name: 香港节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/hk.svg", include-all: true, filter: "(?=.*(港|HK|hk|Hong|hong))^((?!(台湾|TW|台|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 日本节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/jp.svg", include-all: true, filter: "(?=.*(日本|JP|jp|Japan|japan))^((?!(香港|HK|港|台湾|TW|台|韩国|KR|韩|新加坡|SG|坡|狮城|美国|US|美)).)*$"}
+  - {name: 狮城节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/sg.svg", include-all: true, filter: "(?=.*(新加坡|坡|狮城|SG|sg|Singapore|singapore))^((?!(台湾|TW|台|日本|JP|日|韩国|KR|韩|深圳|深|美国|US|美)).)*$"}
+  - {name: 美国节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/us.svg", include-all: true, filter: "(?=.*(美国|美|US|us|States|states|America|america))^((?!(香港|HK|港|台湾|TW|台|韩国|KR|韩|新加坡|SG|坡|狮城|日本|JP|日)).)*$"}
+  - {name: 韩国节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/kr.svg", include-all: true, filter: "(?=.*(韩国|韩|KR|kr|Korea|korea))^((?!(香港|HK|港|台湾|TW|台|日本|JP|日|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 台湾节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/tw.svg", include-all: true, filter: "(?=.*(台湾|台|TW|tw|Taiwan|taiwan))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 加拿大节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/ca.svg", include-all: true, filter: "(?=.*(加拿大|CA|ca|Canada|canada))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 英国节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/gb.svg", include-all: true, filter: "(?=.*(英国|GB|gb|UK|uk|Britain|britain))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 土耳其节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/tr.svg", include-all: true, filter: "(?=.*(土耳其|TR|tr|Turkey|turkey))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 荷兰节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/nl.svg", include-all: true, filter: "(?=.*(荷兰|NL|nl|Netherlands|netherlands))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 法国节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/fr.svg", include-all: true, filter: "(?=.*(法国|FR|fr|France|france))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 德国节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/de.svg", include-all: true, filter: "(?=.*(德国|DE|de|Germany|germany))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 越南节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/vn.svg", include-all: true, filter: "(?=.*(越南|VN|vn|Vietnam|vietnam))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 马来西亚节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/my.svg", include-all: true, filter: "(?=.*(马来西亚|MY|my|Malaysia|malaysia))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 泰国节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/th.svg", include-all: true, filter: "(?=.*(泰国|TH|th|Thailand|thailand))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 菲律宾节点, type: select, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/ph.svg", include-all: true, filter: "(?=.*(菲律宾|PH|ph|Philippines|philippines))^((?!(香港|HK|港|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+
+  # ======================== 自建节点 ========================
+  - {name: 自建节点, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Magic.png", include-all: true, filter: "(?=.*(自建)).*$"}
+  
+
+  # ======================== 故障转移（自动）========================
+  - {name: 香港故转, type: fallback, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/hk.svg", url: "https://www.gstatic.com/generate_204", include-all: true, interval: 300, lazy: true, filter: "(?=.*(港|HK|hk|Hong|hong))^((?!(台湾|TW|台|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 日本故转, type: fallback, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/jp.svg", url: "https://www.gstatic.com/generate_204", include-all: true, interval: 300, lazy: true, filter: "(?=.*(日本|JP|jp|Japan|japan))^((?!(香港|HK|港|台湾|TW|台|韩国|KR|韩|新加坡|SG|坡|狮城|美国|US|美)).)*$"}
+  - {name: 狮城故转, type: fallback, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/sg.svg", url: "https://www.gstatic.com/generate_204", include-all: true, interval: 300, lazy: true, filter: "(?=.*(新加坡|坡|狮城|SG|sg|Singapore|singapore))^((?!(台湾|TW|台|日本|JP|日|韩国|KR|韩|深圳|深|美国|US|美)).)*$"}
+  - {name: 美国故转, type: fallback, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/us.svg", url: "https://www.gstatic.com/generate_204", include-all: true, interval: 300, lazy: true, filter: "(?=.*(美国|美|US|us|States|states|America|america))^((?!(香港|HK|港|台湾|TW|台|韩国|KR|韩|新加坡|SG|坡|狮城|日本|JP|日)).)*$"}
+
+  # ======================== 自动测速（url-test）========================
+  - {name: 香港自动, type: url-test, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/hk.svg", url: "https://www.gstatic.com/generate_204", include-all: true, tolerance: 20, interval: 300, lazy: true, filter: "(?=.*(港|HK|hk|Hong|hong))^((?!(台湾|TW|台|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  - {name: 日本自动, type: url-test, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/jp.svg", url: "https://www.gstatic.com/generate_204", include-all: true, tolerance: 20, interval: 300, lazy: true, filter: "(?=.*(日本|JP|jp|Japan|japan))^((?!(香港|HK|港|台湾|TW|台|韩国|KR|韩|新加坡|SG|坡|狮城|美国|US|美)).)*$"}
+  - {name: 狮城自动, type: url-test, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/sg.svg", url: "https://www.gstatic.com/generate_204", include-all: true, tolerance: 20, interval: 300, lazy: true, filter: "(?=.*(新加坡|坡|狮城|SG|sg|Singapore|singapore))^((?!(台湾|TW|台|日本|JP|日|韩国|KR|韩|深圳|深|美国|US|美)).)*$"}
+  - {name: 美国自动, type: url-test, icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/flags/us.svg", url: "https://www.gstatic.com/generate_204", include-all: true, tolerance: 20, interval: 300, lazy: true, filter: "(?=.*(美国|美|US|us|States|states|America|america))^((?!(香港|HK|港|台湾|TW|台|韩国|KR|韩|新加坡|SG|坡|狮城|日本|JP|日)).)*$"}
+  - {name: 自建节点自动, type: url-test, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Magic.png", url: "https://www.gstatic.com/generate_204", include-all: true, tolerance: 20, interval: 300, lazy: true, filter: "(?=.*(自建)).*$"}
+  - {name: 自动选择, type: url-test, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Auto.png", url: "https://www.gstatic.com/generate_204", include-all: true, tolerance: 20, interval: 300, lazy: true, filter: "^((?!(直连|direct|DIRECT)).)*$"}
+
+  - {name: 全部节点, type: select, icon: "https://fastly.jsdelivr.net/gh/Koolson/Qure@master/IconSet/Color/Available.png", include-all: true}
+  # 指定机场 use: Airport1
+  # - {name: 香港节点, type: select, use: Airport1, filter: "(?=.*(港|HK|hk|Hong|hong))^((?!(台湾|TW|台|日本|JP|日|韩国|KR|韩|新加坡|SG|坡|狮城|深圳|深|美国|US|美)).)*$"}
+  # 链式代理：先走香港节点，再走美国节点
+  # - {name: 链式代理, type: relay, proxies: [香港节点, 美国节点]}
+
+# 规则匹配（域名规则在前，IP 规则统一移至末尾，减少不必要的 DNS 解析）
+rules:
+  - RULE-SET,private_ip,直连,no-resolve
+  - RULE-SET,private_domain,直连
+
+  - RULE-SET,google_domain,Google
+  - RULE-SET,ai,AI
+  - RULE-SET,github_domain,GitHub
+  - RULE-SET,youtube_domain,YouTube
+  - RULE-SET,onedrive_domain,OneDrive
+  - RULE-SET,microsoft_domain,Microsoft
+  - RULE-SET,apple_domain,Apple
+  - RULE-SET,tiktok_domain,TikTok
+  - RULE-SET,telegram_domain,Telegram
+  - RULE-SET,netflix_domain,NETFLIX
+  - RULE-SET,paypal_domain,PayPal
+  - RULE-SET,speedtest_domain,Speedtest
+  - RULE-SET,proxylite,默认代理
+  - RULE-SET,geolocation-!cn,默认代理
+  - RULE-SET,cn_domain,直连
+  # IP 规则置于域名规则之后，避免触发不必要的 DNS 解析
+  - RULE-SET,apple_ip,Apple
+  - RULE-SET,google_ip,Google
+  - RULE-SET,netflix_ip,NETFLIX
+  - RULE-SET,telegram_ip,Telegram
+  - RULE-SET,cn_ip,直连
+  - MATCH,漏网之鱼
+
+# 规则集
+## type：可选 http/file/inline  behavior：可选 domain/ipcidr/classical  format：可选 yaml/text/mrs
+rule-anchor:
+  ip: &ip {type: http, interval: 86400, behavior: ipcidr, format: mrs}
+  domain: &domain {type: http, interval: 86400, behavior: domain, format: mrs}
+  class: &class {type: http, interval: 86400, behavior: classical, format: text}
+rule-providers:
+  fakeipfilter_domain: {<<: *domain, url: "https://raw.githubusercontent.com/silentsiri/clash-rules/release/fakeip-filter.mrs"}
+  private_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/private.mrs"}
+  proxylite: {<<: *class, url: "https://raw.githubusercontent.com/silentsiri/myrules/refs/heads/main/rules/proxy.list"}
+  ai: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/category-ai-!cn.mrs"}
+  youtube_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/youtube.mrs"}
+  google_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/google.mrs"}
+  github_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/github.mrs"}
+  telegram_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/telegram.mrs"}
+  netflix_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/netflix.mrs"}
+  paypal_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/paypal.mrs"}
+  onedrive_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/onedrive.mrs"}
+  microsoft_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/microsoft.mrs"}
+  apple_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/apple.mrs"}
+  speedtest_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/ookla-speedtest.mrs"}
+  tiktok_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/tiktok.mrs"}
+  geolocation-!cn: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/geolocation-!cn.mrs"}
+  cn_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/cn.mrs"}
+  gfw_domain: {<<: *domain, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/gfw.mrs"}
+
+  private_ip: {<<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/private.mrs"}
+  cn_ip: {<<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/cn.mrs"}
+  google_ip: {<<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/google.mrs"}
+  telegram_ip: {<<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/telegram.mrs"}
+  netflix_ip: {<<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/netflix.mrs"}
+  apple_ip: {<<: *ip, url: "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo-lite/geoip/apple.mrs"}
